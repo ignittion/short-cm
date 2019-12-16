@@ -67,7 +67,7 @@ class Short
      * @param array $body
      * @param array $query
      * @param array $additionalHeaders
-     * @return \stdClass
+     * @return \stdClass|array
      */
     protected function call(string $verb = 'GET', string $uri, array $body = [], array $query = [], array $additionalHeaders = [])
     {
@@ -173,7 +173,7 @@ class Short
     {
         try {
             $body = array_map([$this, 'prepareLinkBody'], $links);
-            return $this->call('POST', 'links/bulk', $body);
+            return $this->call('POST', 'links/bulk', ['links' => $body]);
         } catch (ClientException $e) {
             throw new ShortHttpException($e->getResponse());
         }
