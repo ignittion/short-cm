@@ -67,7 +67,7 @@ class Short
      * @param array $body
      * @param array $query
      * @param array $additionalHeaders
-     * @return \stdClass
+     * @return \stdClass|array
      */
     protected function call(string $verb = 'GET', string $uri, array $body = [], array $query = [], array $additionalHeaders = [])
     {
@@ -124,22 +124,23 @@ class Short
 
     /**
      * Create a new short url.
-     * 
+     *
      * @see https://shortcm.docs.apiary.io/#reference/0/link-api/create-a-new-url
      *
      * @param string $originalURL
-     * @param string $title
-     * @param string $path
-     * @param array $tags
-     * @param boolean $allowDuplicates
-     * @param string $expiresAt
-     * @param string $expiredURL
-     * @param string $password
-     * @param string $utmSource
-     * @param string $utmMedium
-     * @param string $utmCampaign
-     * @param string $domain
+     * @param string|null $title
+     * @param string|null $path
+     * @param array|null $tags
+     * @param bool|null $allowDuplicates
+     * @param string|null $expiresAt
+     * @param string|null $expiredURL
+     * @param string|null $password
+     * @param string|null $utmSource
+     * @param string|null $utmMedium
+     * @param string|null $utmCampaign
+     * @param string|null $domain
      * @return \stdClass
+     * @throws ShortHttpException
      */
     public function linkCreate(string $originalURL, string $title = null, string $path = null, array $tags = null,
             bool $allowDuplicates = null, string $expiresAt = null, string $expiredURL = null, string $password = null,
@@ -157,6 +158,100 @@ class Short
         } catch (ClientException $e) {
             throw new ShortHttpException($e->getResponse());
         }
+    }
+
+    /**
+     * Bulk create new short urls.
+     *
+     * @see https://short.cm/api#/Link%20editing/LinksBulkPost
+     *
+     * @param array $links
+     * @return array
+     * @throws ShortHttpException
+     */
+    public function linksBulkCreate(array $links) : array
+    {
+        try {
+            $body = array_map([$this, 'prepareLinkBody'], $links);
+            return $this->call('POST', 'links/bulk', ['links' => $body]);
+        } catch (ClientException $e) {
+            throw new ShortHttpException($e->getResponse());
+        }
+    }
+
+    /**
+     * @param array $link
+     *  $link = [
+     *      'originalURL'       string
+     *      'title'             string|null
+     *      'path'              string|null
+     *      'tags'              array|null
+     *      'allowDuplicates'   bool|null
+     *      'expiresAt'         string|null
+     *      'expiredURL'        string|null
+     *      'iphoneURL'         string|null
+     *      'androidURL'        string|null
+     *      'password'          string|null
+     *      'utmSource'         string|null
+     *      'utmMedium'         string|null
+     *      'utmCampaign'       string|null
+     *      'utmTerm'           string|null
+     *      'utmContent'        string|null
+     *      'cloaking'          integer|null
+     *      'redirectType'      integer|null
+     *      'id'                integer|null
+     *      'domainId'          integer|null
+     *  ]
+     * @return array
+     * @throws \Exception
+     */
+    public function prepareLinkBody(array $link) : array
+    {
+        $fields = [
+            'originalURL' => ['type' => 'string', 'required' => true],
+            'title' => ['type' => 'string'],
+            'path' => ['type' => 'string'],
+            'tags' => ['type' => 'array'],
+            'allowDuplicates' => ['type' => 'bool'],
+            'expiresAt' => ['type' => 'string'],
+            'expiredURL' => ['type' => 'string'],
+            'iphoneURL' => ['type' => 'string'],
+            'androidURL' => ['type' => 'string'],
+            'password' => ['type' => 'string'],
+            'utmSource' => ['type' => 'string'],
+            'utmMedium' => ['type' => 'string'],
+            'utmCampaign' => ['type' => 'string'],
+            'utmTerm' => ['type' => 'string'],
+            'utmContent' => ['type' => 'string'],
+            'cloaking' => ['type' => 'integer'],
+            'redirectType' => ['type' => 'integer'],
+            'id' => ['type' => 'integer'],
+            'domainId' => ['type' => 'integer'],
+        ];
+
+        $body = [];
+        foreach ($fields as $fieldKey => $field) {
+            $fieldValue = $link[$fieldKey] ?? null;
+            $isRequired = $field['required'] ?? false;
+            $fieldType = $field['type'] ?? null;
+
+            //validate input: required fields
+            if(is_null($fieldValue) && $isRequired) {
+                throw new \Exception("Supplied link is not valid. $fieldKey is required.");
+            }
+            if(is_null($fieldValue)) {
+                continue;
+            }
+
+            //validate input: field types
+            if($fieldType && gettype($fieldValue) !== $fieldType) {
+                throw new \Exception("Supplied link is not valid. $fieldKey type should be $fieldType.");
+            }
+
+            $body[$fieldKey] = $fieldValue;
+        }
+
+        return $body;
     }
 
     /**
